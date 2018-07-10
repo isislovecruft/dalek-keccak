@@ -1,3 +1,7 @@
+#![feature(nll)]
+
+mod reference;
+
 #[cfg(test)]
 mod tests {
     #[test]
