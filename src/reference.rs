@@ -39,6 +39,7 @@ const ROUND_CONSTANTS: [u64; 24] = [
 pub struct State([[u64; 5]; 5]);
 
 impl fmt::Debug for State {
+    #[allow(non_snake_case)]
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, "keccak state:")?;
         let A = self.0;
@@ -66,6 +67,7 @@ impl State {
     // keccakf callsite causes a copy of the entire state, possibly
     // because of nested &mut self...
     #[inline(never)]
+    #[allow(non_snake_case)]
     fn round(&mut self, rc: u64) {
         let A = &mut self.0;
 
