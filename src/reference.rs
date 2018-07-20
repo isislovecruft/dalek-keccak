@@ -136,7 +136,5 @@ mod tests {
             println!("after round {}", i);
             println!("{:?}", st);
         }
-
-        panic!();
     }
 }
