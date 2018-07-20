@@ -2,6 +2,8 @@
 
 mod reference;
 
+pub use reference::State;
+
 #[cfg(test)]
 mod tests {
     #[test]
