@@ -1,11 +1,11 @@
 use std::fmt;
 
 const ROTATION_CONSTANTS: [[u32; 5]; 5] = [
-    [00, 36, 03, 41, 18],
-    [01, 44, 10, 45, 02],
-    [62, 06, 43, 15, 61],
-    [28, 55, 25, 21, 56],
-    [27, 20, 39, 08, 14],
+    [00, 01, 62, 28, 27],
+    [36, 44, 06, 55, 20],
+    [03, 10, 43, 25, 39],
+    [41, 45, 15, 21, 08],
+    [18, 02, 61, 56, 14],
 ];
 
 const ROUND_CONSTANTS: [u64; 24] = [
@@ -36,20 +36,21 @@ const ROUND_CONSTANTS: [u64; 24] = [
 ];
 
 #[derive(Clone)]
-struct State([[u64; 5]; 5]);
+pub struct State([[u64; 5]; 5]);
 
 impl fmt::Debug for State {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, "keccak state:")?;
         let A = self.0;
+        writeln!(f, "[")?;
         for i in 0..5 {
-            // Print in transposed order to match Keccak team test vectors
             writeln!(
                 f,
-                "{:016X} {:016X} {:016X} {:016X} {:016X}",
-                A[0][i], A[1][i], A[2][i], A[3][i], A[4][i],
+                "[{:016X}, {:016X}, {:016X}, {:016X}, {:016X}],",
+                A[i][0], A[i][1], A[i][2], A[i][3], A[i][4],
             )?;
         }
+        writeln!(f, "]")?;
         Ok(())
     }
 }
@@ -70,11 +71,11 @@ impl State {
 
         // θ step
         let C: [u64; 5] = [
-            A[0][0] ^ A[0][1] ^ A[0][2] ^ A[0][3] ^ A[0][4],
-            A[1][0] ^ A[1][1] ^ A[1][2] ^ A[1][3] ^ A[1][4],
-            A[2][0] ^ A[2][1] ^ A[2][2] ^ A[2][3] ^ A[2][4],
-            A[3][0] ^ A[3][1] ^ A[3][2] ^ A[3][3] ^ A[3][4],
-            A[4][0] ^ A[4][1] ^ A[4][2] ^ A[4][3] ^ A[4][4],
+            A[0][0] ^ A[1][0] ^ A[2][0] ^ A[3][0] ^ A[4][0],
+            A[0][1] ^ A[1][1] ^ A[2][1] ^ A[3][1] ^ A[4][1],
+            A[0][2] ^ A[1][2] ^ A[2][2] ^ A[3][2] ^ A[4][2],
+            A[0][3] ^ A[1][3] ^ A[2][3] ^ A[3][3] ^ A[4][3],
+            A[0][4] ^ A[1][4] ^ A[2][4] ^ A[3][4] ^ A[4][4],
         ];
 
         let D: [u64; 5] = [
@@ -85,34 +86,34 @@ impl State {
             C[3] ^ (C[0].rotate_left(1)),
         ];
 
-        for x in 0..5 {
-            A[x] = [
-                A[x][0] ^ D[x],
-                A[x][1] ^ D[x],
-                A[x][2] ^ D[x],
-                A[x][3] ^ D[x],
-                A[x][4] ^ D[x],
+        for y in 0..5 {
+            A[y] = [
+                A[y][0] ^ D[0],
+                A[y][1] ^ D[1],
+                A[y][2] ^ D[2],
+                A[y][3] ^ D[3],
+                A[y][4] ^ D[4],
             ];
         }
 
         // ρ and π steps
-        let B_ij = |x: usize, y: usize| A[x][y].rotate_left(ROTATION_CONSTANTS[x][y]);
+        let B_ij = |x: usize, y: usize| A[y][x].rotate_left(ROTATION_CONSTANTS[y][x]);
 
         let B: [[u64; 5]; 5] = [
-            [B_ij(0, 0), B_ij(3, 0), B_ij(1, 0), B_ij(4, 0), B_ij(2, 0)],
-            [B_ij(1, 1), B_ij(4, 1), B_ij(2, 1), B_ij(0, 1), B_ij(3, 1)],
-            [B_ij(2, 2), B_ij(0, 2), B_ij(3, 2), B_ij(1, 2), B_ij(4, 2)],
-            [B_ij(3, 3), B_ij(1, 3), B_ij(4, 3), B_ij(2, 3), B_ij(0, 3)],
-            [B_ij(4, 4), B_ij(2, 4), B_ij(0, 4), B_ij(3, 4), B_ij(1, 4)],
+            [B_ij(0, 0), B_ij(1, 1), B_ij(2, 2), B_ij(3, 3), B_ij(4, 4)],
+            [B_ij(3, 0), B_ij(4, 1), B_ij(0, 2), B_ij(1, 3), B_ij(2, 4)],
+            [B_ij(1, 0), B_ij(2, 1), B_ij(3, 2), B_ij(4, 3), B_ij(0, 4)],
+            [B_ij(4, 0), B_ij(0, 1), B_ij(1, 2), B_ij(2, 3), B_ij(3, 4)],
+            [B_ij(2, 0), B_ij(3, 1), B_ij(4, 2), B_ij(0, 3), B_ij(1, 4)],
         ];
 
         // χ step
         for y in 0..5 {
-            A[0][y] = B[0][y] ^ ((!B[1][y]) & B[2][y]);
-            A[1][y] = B[1][y] ^ ((!B[2][y]) & B[3][y]);
-            A[2][y] = B[2][y] ^ ((!B[3][y]) & B[4][y]);
-            A[3][y] = B[3][y] ^ ((!B[4][y]) & B[0][y]);
-            A[4][y] = B[4][y] ^ ((!B[0][y]) & B[1][y]);
+            A[y][0] = B[y][0] ^ ((!B[y][1]) & B[y][2]);
+            A[y][1] = B[y][1] ^ ((!B[y][2]) & B[y][3]);
+            A[y][2] = B[y][2] ^ ((!B[y][3]) & B[y][4]);
+            A[y][3] = B[y][3] ^ ((!B[y][4]) & B[y][0]);
+            A[y][4] = B[y][4] ^ ((!B[y][0]) & B[y][1]);
         }
 
         // ι step
