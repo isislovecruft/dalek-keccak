@@ -1,4 +1,5 @@
 use std::fmt;
+use std::ops::{Index, IndexMut};
 
 const ROTATION_CONSTANTS: [[u32; 5]; 5] = [
     [00, 01, 62, 28, 27],
@@ -53,6 +54,25 @@ impl fmt::Debug for State {
         }
         writeln!(f, "]")?;
         Ok(())
+    }
+}
+
+impl Index<usize> for State {
+    type Output = u8;
+    #[inline]
+    fn index(&self, index: usize) -> &u8 {
+        let bytes: &[u8; 5 * 5 * 8] = unsafe { ::std::mem::transmute(&self.0) };
+
+        &bytes[index]
+    }
+}
+
+impl IndexMut<usize> for State {
+    #[inline]
+    fn index_mut(&mut self, index: usize) -> &mut u8 {
+        let bytes: &mut [u8; 5 * 5 * 8] = unsafe { ::std::mem::transmute(&mut self.0) };
+
+        &mut bytes[index]
     }
 }
 
