@@ -8,25 +8,24 @@
 // - isis agora lovecruft <isis@patternsinthevoid.net>
 // - Henry de Valence <hdevalence@hdevalence.ca>
 
-use core::vec::Vec;
-
 use digest_external::BlockInput;
 use digest_external::Input;
 use digest_external::FixedOutput;
 
 pub use digest_external::Digest;
 
-use generic_array::typenum::{U28, U32, U48, U56, U64, U96, U128};
+use generic_array::ArrayLength;
+use generic_array::typenum::{U28, U32, U48, U56, U64, U96, U128, U200};
 
-use super::State;
+use State;
 
 pub trait Padding {
-    fn pad(length: usize) -> Vec<u8>;
+    fn pad(x: usize, m: &[u8]) -> Vec<u8>;
 }
 
 pub struct PadOneZeroStarOne{ }
 
-impl Padding for PadOneZeroStarOne<'p> {
+impl Padding for PadOneZeroStarOne {
     /// Pad the message `m` to a multiple of `x` bits.
     ///
     /// # Returns
@@ -60,7 +59,7 @@ pub trait Sponge {
     type Rate: ArrayLength<u8>;
 
     fn absorb(&mut self, input: &[u8]);
-    fn squeeze(&mut self, length: usize) -> &[u8];
+    fn squeeze(&mut self, length: Option<usize>) -> Vec<u8>;
 }
 
 macro_rules! bits_to_bytes {
@@ -72,17 +71,21 @@ macro_rules! bits_to_bytes {
 
     // Sizes for keccak rates and capacities
     (448)  => {U56};
+    (576)  => {U72};
     (768)  => {U96};
+    (832)  => {U104};
     (1024) => {U128};
+    (1088) => {U136};
+    (1152) => {U144};
+    (1344) => {U168};
+    (1600) => {U200};
 }
 
-macro_rules! impl_hash_function {
+macro_rules! impl_sponge {
     ( $name:ident,
-      $blocksize:expr,
-      $capacity:expr,
       $rate:expr,
-      $rounds:expr,
-      $outputsize:expr
+      $outputsize:expr,
+      $separator:expr
     ) => {
         impl Sponge for $name {
             type Pad = PadOneZeroStarOne;
@@ -91,7 +94,7 @@ macro_rules! impl_hash_function {
             fn absorb(&mut self, input: &[u8]) {
                 let p: Vec<u8> = Self::Pad::pad(input);
                 let n: usize = p.len() - ($rate as usize);
-                let c: usize = ($blocksize as usize) - ($rate as usize);
+                let c: usize = 6100usize - ($rate as usize);
                 
                 for chunk in p.exact_chunks($rate) {
                     for i in 0..$rate {
@@ -100,11 +103,26 @@ macro_rules! impl_hash_function {
                 }
                 let z: Vec<u8> = p.truncate($rate);
 
-                for _ in 0..$rounds {
-                    self.0.keccakf()
-                }
+                self.0.keccakf()
+            }
+
+            fn squeeze(&mut self, length: Option<usize>) {
+                let d: usize = length.unwrap_or($outputsize as usize);
+                
+                
             }
         }
+    }
+}
+
+macro_rules! impl_hash {
+    ( $name:ident,
+      $capacity:expr,
+      $rate:expr,
+      $outputsize:expr,
+      $separator:expr
+    ) => {
+        impl_sponge!($name, $rate, $outputsize, $separator);
 
         #[derive(Clone, Debug)]
         pub struct $name(pub(crate) State);
@@ -116,11 +134,11 @@ macro_rules! impl_hash_function {
         }
 
         impl BlockInput for $name {
-            type BlockSize = bits_to_bytes!($blocksize);
+            type BlockSize = bits_to_bytes!(1600);
         }
 
         impl Input for $name {
-            fn input(&mut self, input: &[u8]) {
+            fn process(&mut self, input: &[u8]) {
                 unimplemented!()
             }
         }
@@ -135,13 +153,70 @@ macro_rules! impl_hash_function {
     }
 }
 
-mod sha3 {
- // impl_hash_function!(name, blocksize, capacity, rate, rounds, outputsize)
-    impl_hash_function!(Sha3_224, 1600,  448, 1600 -  448, 24, 224);
-    impl_hash_function!(Sha3_256, 1600,  512, 1600 -  512, 24, 256);
-    impl_hash_function!(Sha3_384, 1600,  768, 1600 -  768, 24, 384);
-    impl_hash_function!(Sha3_512, 1600, 1024, 1600 - 1024, 24, 512);
+pub mod sha3 {
+    use super::*;
+
+ // impl_hash!(name, capacity, rate, rounds, outputsize, separator)
+    //impl_hash!(Sha3_224,  448, (1600 -  448)/8, 224, 0x06);
+    //impl_hash!(Sha3_256,  512, (1600 -  512)/8, 256, 0x06);
+    //impl_hash!(Sha3_384,  768, (1600 -  768)/8, 384, 0x06);
+    //impl_hash!(Sha3_512, 1024, (1600 - 1024)/8, 512, 0x06);
+
+    #[derive(Clone, Debug)]
+    pub struct Sha3_256(pub(crate) State);
+
+    impl Default for Sha3_256 {
+        fn default() -> Self {
+            Sha3_256(State::zero())
+        }
+    }
+
+    impl Sponge for Sha3_256 {
+        type Pad = PadOneZeroStarOne;
+        type Rate = bits_to_bytes!(1088);
+
+        fn absorb(&mut self, input: &[u8]) {
+            let p: Vec<u8> = Self::Pad::pad(input);
+            let n: usize = p.len() - (1088/8 as usize);
+            let c: usize = 1600usize/8 - (1088/8 as usize);
+                
+            for chunk in p.exact_chunks(1088/8) {
+                for i in 0..1088/8 {
+                    self.0[i] ^= chunk[i];
+                }
+            }
+            p.truncate(1088/8);
+
+            self.0.keccakf()
+        }
+
+        fn squeeze(&mut self, length: Option<usize>) -> Vec<u8> {
+            let d: usize = length.unwrap_or(256 as usize);
+            
+            unimplemented!()
+        }
+    }
+
+    impl BlockInput for Sha3_256 {
+        type BlockSize = bits_to_bytes!(1600);
+    }
+
+    impl Input for Sha3_256 {
+        fn process(&mut self, input: &[u8]) {
+            unimplemented!()
+        }
+    }
+
+    impl FixedOutput for Sha3_256 {
+        type OutputSize = bits_to_bytes!(256);
+
+        fn fixed_result(self) -> GenericArray<u8, Self::OutputSize> {
+            unimplemented!()
+        }
+    }
 }
+
+// separator for shake is 0x1F and for cshake is 0x04
 
 #[cfg(test)]
 mod test {
