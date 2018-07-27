@@ -141,6 +141,10 @@ impl State {
         // ι step
         A[0][0] ^= rc;
     }
+
+    pub(crate) fn zero() -> State {
+        State([[0; 5]; 5])
+    }
 }
 
 #[cfg(test)]
