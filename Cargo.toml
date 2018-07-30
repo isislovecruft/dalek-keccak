@@ -4,3 +4,8 @@ version = "0.1.0"
 authors = ["Henry de Valence <hdevalence@hdevalence.ca>"]
 
 [dependencies]
+digest = "0.7"
+
+[dev-dependencies]
+sha3 = "0.7"
+digest = { version = "0.7", features = ["dev"] }

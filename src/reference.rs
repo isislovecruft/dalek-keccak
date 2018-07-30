@@ -1,5 +1,6 @@
 use std::fmt;
 use std::ops::{Index, IndexMut};
+use std::default::Default;
 
 const ROTATION_CONSTANTS: [[u32; 5]; 5] = [
     [00, 01, 62, 28, 27],
@@ -73,6 +74,12 @@ impl IndexMut<usize> for State {
         let bytes: &mut [u8; 5 * 5 * 8] = unsafe { ::std::mem::transmute(&mut self.0) };
 
         &mut bytes[index]
+    }
+}
+
+impl Default for State {
+    fn default() -> State {
+        State([[0u64; 5]; 5])
     }
 }
 

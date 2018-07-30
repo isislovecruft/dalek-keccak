@@ -1,5 +1,14 @@
 #![feature(nll)]
 
+extern crate digest;
+
 mod reference;
 
-pub use reference::State;
+pub mod digests;
+
+pub mod keccak {
+    pub use reference::State;
+}
+
+#[cfg(test)]
+extern crate sha3;
