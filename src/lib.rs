@@ -1,7 +1,10 @@
 #![feature(nll)]
+#![feature(trace_macros)]
 
 extern crate digest;
 
+#[macro_use]
+mod macros;
 mod reference;
 
 pub mod digests;
